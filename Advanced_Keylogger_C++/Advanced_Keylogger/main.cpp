@@ -7,7 +7,8 @@
 
 using namespace std;
 
-int main() {
+int main() 
+{
 	MSG Msg;
 
 	while (GetMessage(&Msg, NULL, 0, 0))
