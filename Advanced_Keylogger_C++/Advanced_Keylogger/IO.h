@@ -23,7 +23,7 @@ namespace IO
 		return (bool)CreateDirectory(path.c_str(), NULL) || GetLastError() == ERROR_ALREADY_EXISTS;
 	}
 
-	bool MKDir(std::string paht)
+	bool MKDir(std::string path)
 	{
 		for (char &c : path)
 			if (c == '\\')
