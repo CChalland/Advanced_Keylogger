@@ -88,7 +88,11 @@ public:
 		interval = std::chrono::milliseconds(i);
 	}
 
+	unsigned long Interval() const { return interval.count(); }
 
+	const std::function<void(void)> &Function() const
+	{
+		return funct;
+	}
 };
-
 #endif
